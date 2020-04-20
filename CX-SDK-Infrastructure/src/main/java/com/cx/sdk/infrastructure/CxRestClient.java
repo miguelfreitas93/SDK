@@ -7,8 +7,8 @@ import com.cx.sdk.domain.exceptions.SdkException;
 import com.cx.sdk.infrastructure.authentication.kerberos.WindowsAuthenticator;
 import com.cx.sdk.infrastructure.proxy.ConnectionFactory;
 import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
+
 import javax.ws.rs.client.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.NewCookie;
@@ -32,11 +32,11 @@ public class CxRestClient {
     public CxRestClient(SDKConfigurationProvider sdkConfigurationProvider) {
         this.sdkConfigurationProvider = sdkConfigurationProvider;
         ClientConfig clientConfig = new ClientConfig(getConnectionProvider());
-        client = ClientBuilder.newClient( clientConfig);
+        client = ClientBuilder.newClient(clientConfig);
     }
 
 
-    private HttpUrlConnectorProvider getConnectionProvider(){
+    private HttpUrlConnectorProvider getConnectionProvider() {
         setUrlByLoginType();
         HttpUrlConnectorProvider httpUrlConnectorProvider = new HttpUrlConnectorProvider();
         httpUrlConnectorProvider.connectionFactory(new ConnectionFactory(sdkConfigurationProvider));
@@ -68,7 +68,7 @@ public class CxRestClient {
 
         Response response = baseRequest(url)
                 .accept("application/json")
-                    .post(Entity.entity(String.format(request,userName,password), MediaType.APPLICATION_JSON));
+                .post(Entity.entity(String.format(request, userName, password), MediaType.APPLICATION_JSON));
 
         validateResponse(response);
 

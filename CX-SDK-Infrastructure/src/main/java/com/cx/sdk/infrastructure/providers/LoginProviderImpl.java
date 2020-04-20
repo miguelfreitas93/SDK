@@ -41,6 +41,8 @@ public class LoginProviderImpl implements LoginProvider {
         System.setProperty("jdk.http.auth.proxying.disabledSchemes", "");
         System.setProperty("https.protocols", "TLSv1,TLSv1.1,TLSv1.2,SSLv3");
         System.setProperty("http.auth.preference", "Basic");
+        System.setProperty("jdk.tls.trustNameService", "true");
+        System.setProperty("com.sun.jndi.ldap.object.disableEndpointIdentification", "true");
     }
 
     @Inject
