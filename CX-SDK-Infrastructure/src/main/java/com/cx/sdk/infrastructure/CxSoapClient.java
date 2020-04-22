@@ -1,20 +1,22 @@
 package com.cx.sdk.infrastructure;
 
 import com.checkmarx.v7.*;
-import com.cx.sdk.application.contracts.providers.SDKConfigurationProvider;
 import com.cx.sdk.application.contracts.exceptions.NotAuthorizedException;
+import com.cx.sdk.application.contracts.providers.SDKConfigurationProvider;
 import com.cx.sdk.domain.Session;
 import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.domain.exceptions.SdkException;
 import com.cx.sdk.infrastructure.authentication.kerberos.DynamicAuthSupplier;
 import org.apache.cxf.endpoint.Client;
 import org.apache.cxf.frontend.ClientProxy;
+import org.apache.cxf.message.Message;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.ws.BindingProvider;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
@@ -24,6 +26,7 @@ import java.net.URL;
  * Created by ehuds on 2/28/2017.
  */
 public class CxSoapClient {
+
     private final SDKConfigurationProvider sdkConfigurationProvider;
     private static final Logger logger = LoggerFactory.getLogger(CxSoapClient.class);
 
@@ -35,9 +38,18 @@ public class CxSoapClient {
     public CxWSResponseLoginData login(String userName, String password) throws Exception {
         logger.debug("Performing credentials login, SOAP client..");
         URL wsdlUrl = getWsdlUrl(sdkConfigurationProvider.getCxServerUrl());
-        logger.debug("Creating SDK web service");
+        logger.info("Creating SDK web service on: " + wsdlUrl);
+        wsdlUrl = replaceHostName(wsdlUrl.toString());
+        logger.info("After hostname replacement: " + wsdlUrl);
         CxSDKWebService cxSDKWebService = new CxSDKWebService(wsdlUrl);
         CxSDKWebServiceSoap cxSDKWebServiceSoap = cxSDKWebService.getCxSDKWebServiceSoap();
+
+        String serviceEndpointUrl = (String) ((BindingProvider) cxSDKWebServiceSoap).getRequestContext().get(Message.ENDPOINT_ADDRESS);
+        logger.info("CXF endpoint before: " + serviceEndpointUrl);
+        serviceEndpointUrl = replaceHostName(serviceEndpointUrl).toString();
+        logger.info("CXF endpoint After: " + serviceEndpointUrl);
+        ((BindingProvider) cxSDKWebServiceSoap).getRequestContext().put(Message.ENDPOINT_ADDRESS, serviceEndpointUrl);
+
         Credentials credentials = new Credentials();
         credentials.setUser(userName);
         credentials.setPass(password);
@@ -49,13 +61,13 @@ public class CxSoapClient {
 
     private void setProxySettingsForSoap(CxSDKWebServiceSoap cxSDKWebServiceSoap) {
         ProxyParams proxyParams = sdkConfigurationProvider.getProxyParams();
-        if(proxyParams.getType() != null){
+        if (proxyParams.getType() != null) {
             logger.debug("setting proxy for soap client");
             Client client = ClientProxy.getClient(cxSDKWebServiceSoap);
             HTTPConduit conduit = (HTTPConduit) client.getConduit();
             String proxyServer = proxyParams.getServer();
             int proxyServerPort = proxyParams.getPort();
-            if(proxyParams.getType().equals("HTTPS")){
+            if (proxyParams.getType().equals("HTTPS")) {
                 proxyParams.setType(Proxy.Type.HTTP.name());
             }
             ProxyServerType proxyServerType = ProxyServerType.valueOf(proxyParams.getType());
@@ -63,7 +75,7 @@ public class CxSoapClient {
             clientPolicy.setProxyServerType(proxyServerType);
             clientPolicy.setProxyServer(proxyServer);
             clientPolicy.setProxyServerPort(proxyServerPort);
-            if(proxyParams.getUsername() != null){
+            if (proxyParams.getUsername() != null) {
                 conduit.getProxyAuthorization().setUserName(proxyParams.getUsername());
                 conduit.getProxyAuthorization().setPassword(proxyParams.getPassword());
             }
@@ -137,9 +149,39 @@ public class CxSoapClient {
 
     private CxSDKWebServiceSoap createProxy() {
         URL wsdlUrl = getWsdlUrl(sdkConfigurationProvider.getCxServerUrl());
+        wsdlUrl = replaceHostName(wsdlUrl.toString());
+        logger.info("After hostname replacement: " + wsdlUrl);
         CxSDKWebService cxSDKWebService = new CxSDKWebService(wsdlUrl);
         CxSDKWebServiceSoap cxSDKWebServiceSoap = cxSDKWebService.getCxSDKWebServiceSoap();
+
+        String serviceEndpointUrl = (String) ((BindingProvider) cxSDKWebServiceSoap).getRequestContext().get(Message.ENDPOINT_ADDRESS);
+        logger.info("CXF endpoint before: " + serviceEndpointUrl);
+        serviceEndpointUrl = replaceHostName(serviceEndpointUrl).toString();
+        logger.info("CXF endpoint After: " + serviceEndpointUrl);
+        ((BindingProvider) cxSDKWebServiceSoap).getRequestContext().put(Message.ENDPOINT_ADDRESS, serviceEndpointUrl);
+
         setProxySettingsForSoap(cxSDKWebServiceSoap);
         return cxSDKWebServiceSoap;
     }
+
+    private URL replaceHostName(String url) {
+        String host = System.getProperty("cx.host").trim();
+        URL origUrl = null;
+        try {
+            origUrl = new URL(url);
+            if (isEmpty(host) || origUrl.getHost().equalsIgnoreCase(host)) {
+                return origUrl;
+            }
+
+            return new URL(origUrl.getProtocol(), host, origUrl.getPort(), origUrl.getPath());
+        } catch (Exception ex) {
+            logger.error("Replacing hostname failed: " + ex.getMessage());
+            return origUrl;
+        }
+    }
+
+    private static boolean isEmpty(Object str) {
+        return str == null || "".equals(str);
+    }
+
 }
