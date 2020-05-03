@@ -3,15 +3,20 @@ package com.cx.sdk.oidcLogin.webBrowsing;
 import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
 import com.google.common.base.Splitter;
-import com.teamdev.jxbrowser.chromium.*;
-import com.teamdev.jxbrowser.chromium.dom.DOMDocument;
-import com.teamdev.jxbrowser.chromium.events.FinishLoadingEvent;
-import com.teamdev.jxbrowser.chromium.events.LoadAdapter;
-import com.teamdev.jxbrowser.chromium.events.LoadListener;
-import com.teamdev.jxbrowser.chromium.internal.Environment;
-import com.teamdev.jxbrowser.chromium.swing.BrowserView;
-import com.teamdev.jxbrowser.chromium.swing.DefaultNetworkDelegate;
-
+import com.teamdev.jxbrowser.browser.Browser;
+import com.teamdev.jxbrowser.dom.Document;
+import com.teamdev.jxbrowser.dom.Element;
+import com.teamdev.jxbrowser.engine.Engine;
+import com.teamdev.jxbrowser.engine.EngineOptions;
+import com.teamdev.jxbrowser.engine.RenderingMode;
+import com.teamdev.jxbrowser.event.Observer;
+import com.teamdev.jxbrowser.frame.Frame;
+import com.teamdev.jxbrowser.navigation.LoadUrlParams;
+import com.teamdev.jxbrowser.navigation.event.FrameLoadFinished;
+import com.teamdev.jxbrowser.net.HttpHeader;
+import com.teamdev.jxbrowser.net.callback.BeforeSendHeadersCallback;
+import com.teamdev.jxbrowser.os.Environment;
+import com.teamdev.jxbrowser.view.swing.BrowserView;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -19,7 +24,10 @@ import java.awt.event.WindowEvent;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
@@ -54,37 +62,41 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             System.setProperty("java.ipc.external", "true");
             System.setProperty("jxbrowser.ipc.external", "true");
 
-            if (!BrowserCore.isInitialized()) {
+            /*if (!BrowserCore.isInitialized()) {
                 BrowserCore.initialize();
-            }
+            }*/
         }
 
-        BrowserPreferences.setChromiumSwitches("--disable-google-traffic");
+//        BrowserPreferences.setChromiumSwitches("--disable-google-traffic");
         contentPane = new JPanel(new GridLayout(1, 1));
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        BrowserContext browserContext = BrowserContext.defaultContext();
-        browserContext.getNetworkService().setNetworkDelegate(new DefaultNetworkDelegate() {
-            @Override
-            public void onBeforeSendHeaders(BeforeSendHeadersParams params) {
-                params.getHeadersEx().setHeader("cxOrigin", clientName);
-            }
+        Engine engine = defaultEngine();
+
+        engine.network().set(BeforeSendHeadersCallback.class, params -> {
+            List<HttpHeader> headersList = new ArrayList<>(params.httpHeaders());
+            headersList.add(HttpHeader.of("cxOrigin", clientName));
+            return BeforeSendHeadersCallback.Response.override(headersList);
         });
-        browser = new Browser(browserContext);
+
+
+        browser = engine.newBrowser();
+        browser.navigation().on(FrameLoadFinished.class, AddResponsesHandler());
         String postData = getPostData();
-        LoadURLParams urlParams = new LoadURLParams(restUrl, postData);
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
-        browser.loadURL(urlParams);
-        contentPane.add(new BrowserView(browser));
-        browser.addLoadListener(AddResponsesHandler());
+        browser.navigation().loadUrlAndWait(LoadUrlParams
+                .newBuilder(restUrl)
+                .postData(postData)
+                .build());
+        contentPane.add(BrowserView.newInstance(browser));
         setSize(700, 650);
         setLocationRelativeTo(null);
         getContentPane().add(contentPane, BorderLayout.CENTER);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                browser.dispose();
+                browser.close();
                 if (response == null) {
                     response = new AuthenticationData(true);
                 }
@@ -94,21 +106,29 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         setVisible(true);
     }
 
-    @Override
-    public void logout(String idToken) {
-        BrowserContext browserContext = BrowserContext.defaultContext();
-        browser = new Browser(BrowserType.LIGHTWEIGHT, browserContext);
-        browser.loadURL(endSessionEndPoint + String.format(END_SESSION_FORMAT, idToken, serverUrl + "/cxwebclient/"));
-        browser.addLoadListener(disposeOnLoadDone());
+    private Engine defaultEngine() {
+        return Engine.newInstance(EngineOptions
+                .newBuilder(RenderingMode.HARDWARE_ACCELERATED)
+                .build());
     }
 
-    private LoadListener disposeOnLoadDone() {
-        return new LoadAdapter() {
-            @Override
-            public void onFinishLoadingFrame(FinishLoadingEvent event) {
-                browser.dispose();
-            }
+    @Override
+    public void logout(String idToken) {
+        Engine engine = defaultEngine();
+        browser = engine.newBrowser();
+        browser.navigation().loadUrl(endSessionEndPoint + String.format(END_SESSION_FORMAT, idToken, serverUrl + "/cxwebclient/"));
+        browser.navigation().on(FrameLoadFinished.class,disposeOnLoadDone());
+    }
+
+    private Observer<FrameLoadFinished> disposeOnLoadDone() {
+        return param -> {
+          param.frame().browser().close();
         };
+    }
+
+    private void configureBrowserEvents() {
+        browser.navigation().on(FrameLoadFinished.class, obs -> {
+        });
     }
 
     private void waitForAuthentication() {
@@ -145,21 +165,17 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         }
     }
 
-    private LoadAdapter AddResponsesHandler() {
-        return new LoadAdapter() {
-            @Override
-            public void onFinishLoadingFrame(FinishLoadingEvent event) {
-                handleErrorResponse(event);
-                handleResponse(event);
-                if (response.code != null || hasErrors())
-                    closePopup();
-            }
-
+    private Observer<FrameLoadFinished> AddResponsesHandler() {
+        return param -> {
+            handleErrorResponse(param);
+            handleResponse(param);
+            if (response.code != null || hasErrors())
+                closePopup();
         };
     }
 
-    private void handleErrorResponse(FinishLoadingEvent event) {
-        if (event.isMainFrame()) {
+    private void handleErrorResponse(FrameLoadFinished event) {
+        if (event.frame().isMain()) {
 
             checkForUrlQueryErrors(event);
             if (!hasErrors())
@@ -167,11 +183,11 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         }
     }
 
-    private void checkForUrlQueryErrors(FinishLoadingEvent event) {
+    private void checkForUrlQueryErrors(FrameLoadFinished event) {
         if (!isUrlErrorResponse(event)) return;
 
         try {
-            String queryStringParams = new URL(event.getValidatedURL()).getQuery();
+            String queryStringParams = new URL(event.url()).getQuery();
             String[] params = queryStringParams.split("&");
             for (Integer i = 0; i < params.length; i++) {
                 if (params[i].startsWith("Error")) {
@@ -186,14 +202,19 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         }
     }
 
-    private boolean isUrlErrorResponse(FinishLoadingEvent event) {
-        return event.getValidatedURL().contains("Error=");
+    private boolean isUrlErrorResponse(FrameLoadFinished event) {
+        return event.url().contains("Error=");
     }
 
-    private void checkForBodyErrors(FinishLoadingEvent event) {
-        Browser browser = event.getBrowser();
-        DOMDocument document = browser.getDocument();
-        String content = document.getDocumentElement().getInnerHTML();
+    private void checkForBodyErrors(FrameLoadFinished event) {
+        Frame frame = event.frame();
+        Optional<Document> document = frame.document();
+        String content = "";
+        if (document.isPresent()) {
+            Document d = document.get();
+            Optional<Element> element = d.documentElement();
+            content = element.isPresent() ? element.get().innerHtml() : "";
+        }
 
         if (!isBodyErrorResponse(content)) return;
         handleInternalServerError(content);
@@ -230,17 +251,17 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         return content.toLowerCase().contains("messagecode");
     }
 
-    private boolean validateUrlResponse(FinishLoadingEvent event) {
-        return event.getValidatedURL().toLowerCase().contains(Consts.CODE_KEY);
+    private boolean validateUrlResponse(FrameLoadFinished event) {
+        return event.url().toLowerCase().contains(Consts.CODE_KEY);
     }
 
     private boolean hasErrors() {
         return error != null && !error.isEmpty();
     }
 
-    private void handleResponse(FinishLoadingEvent event) {
-        if (event.isMainFrame() && (validateUrlResponse(event)) && !hasErrors()) {
-            String validatedURL = event.getValidatedURL();
+    private void handleResponse(FrameLoadFinished event) {
+        if (event.frame().isMain() && (validateUrlResponse(event)) && !hasErrors()) {
+            String validatedURL = event.url();
             extractReturnedUrlParams(validatedURL);
             response = new AuthenticationData(urlParamsMap.get(Consts.CODE_KEY));
         }
@@ -258,7 +279,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
     @Override
     public void disposeBrowser() {
-        browser.dispose();
+        browser.close();
     }
 
 }
