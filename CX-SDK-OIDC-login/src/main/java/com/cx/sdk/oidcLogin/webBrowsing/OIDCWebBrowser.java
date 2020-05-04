@@ -15,6 +15,9 @@ import com.teamdev.jxbrowser.navigation.LoadUrlParams;
 import com.teamdev.jxbrowser.navigation.event.FrameLoadFinished;
 import com.teamdev.jxbrowser.net.HttpHeader;
 import com.teamdev.jxbrowser.net.callback.BeforeSendHeadersCallback;
+import com.teamdev.jxbrowser.net.callback.CanGetCookiesCallback;
+import com.teamdev.jxbrowser.net.callback.CanSetCookieCallback;
+import com.teamdev.jxbrowser.net.callback.VerifyCertificateCallback;
 import com.teamdev.jxbrowser.os.Environment;
 import com.teamdev.jxbrowser.view.swing.BrowserView;
 import javax.swing.*;
@@ -41,6 +44,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     private Map<String, String> urlParamsMap;
     private String serverUrl;
     private String endSessionEndPoint;
+    public static Engine ENGINE;
 
     @Override
     public AuthenticationData browseAuthenticationData(String serverUrl, String clientName) throws Exception {
@@ -81,15 +85,12 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
 
         browser = engine.newBrowser();
-        browser.navigation().on(FrameLoadFinished.class, AddResponsesHandler());
         String postData = getPostData();
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
-        browser.navigation().loadUrlAndWait(LoadUrlParams
-                .newBuilder(restUrl)
-                .postData(postData)
-                .build());
+        browser.navigation().loadUrlAndWait(restUrl+"?"+postData);
         contentPane.add(BrowserView.newInstance(browser));
+        browser.navigation().on(FrameLoadFinished.class, AddResponsesHandler());
         setSize(700, 650);
         setLocationRelativeTo(null);
         getContentPane().add(contentPane, BorderLayout.CENTER);
@@ -106,10 +107,22 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         setVisible(true);
     }
 
-    private Engine defaultEngine() {
-        return Engine.newInstance(EngineOptions
-                .newBuilder(RenderingMode.HARDWARE_ACCELERATED)
-                .build());
+    public static Engine defaultEngine() {
+        if(ENGINE == null || ENGINE.isClosed() ) {
+            ENGINE = Engine.newInstance(EngineOptions
+                    .newBuilder(RenderingMode.HARDWARE_ACCELERATED)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36")
+                    .enableIncognito()
+                    .allowFileAccessFromFiles()
+                    .disableWebSecurity()
+                    .addSwitch("--disable-google-traffic")
+                    .build());
+            ENGINE.network().set(CanGetCookiesCallback.class, params -> CanGetCookiesCallback.Response.can());
+            ENGINE.network().set(CanSetCookieCallback.class, params -> CanSetCookieCallback.Response.can());
+            ENGINE.network().set(VerifyCertificateCallback.class, params -> VerifyCertificateCallback.Response.valid());
+        }
+
+        return ENGINE;
     }
 
     @Override
@@ -169,7 +182,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         return param -> {
             handleErrorResponse(param);
             handleResponse(param);
-            if (response.code != null || hasErrors())
+            if ((response != null && response.code != null) || hasErrors())
                 closePopup();
         };
     }
