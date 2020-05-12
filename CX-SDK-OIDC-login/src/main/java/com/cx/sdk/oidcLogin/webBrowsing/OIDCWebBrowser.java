@@ -97,7 +97,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                browser.close();
+                engine.close();
                 if (response == null) {
                     response = new AuthenticationData(true);
                 }
@@ -113,12 +113,11 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
                     .newBuilder(RenderingMode.HARDWARE_ACCELERATED)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36")
                     .enableIncognito()
-                    .allowFileAccessFromFiles()
-                    .disableWebSecurity()
                     .addSwitch("--disable-google-traffic")
                     .build());
             ENGINE.network().set(CanGetCookiesCallback.class, params -> CanGetCookiesCallback.Response.can());
-            ENGINE.network().set(CanSetCookieCallback.class, params -> CanSetCookieCallback.Response.can());
+            ENGINE.network().set(CanSetCookieCallback.class, params ->
+                    CanSetCookieCallback.Response.can());
             ENGINE.network().set(VerifyCertificateCallback.class, params -> VerifyCertificateCallback.Response.valid());
         }
 
