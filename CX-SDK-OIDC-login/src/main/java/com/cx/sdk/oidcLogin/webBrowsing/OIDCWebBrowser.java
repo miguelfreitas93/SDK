@@ -71,7 +71,6 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             }*/
         }
 
-//        BrowserPreferences.setChromiumSwitches("--disable-google-traffic");
         contentPane = new JPanel(new GridLayout(1, 1));
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
