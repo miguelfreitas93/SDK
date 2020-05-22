@@ -39,8 +39,6 @@ public class CxSoapClient {
         logger.debug("Performing credentials login, SOAP client..");
         URL wsdlUrl = getWsdlUrl(sdkConfigurationProvider.getCxServerUrl());
         logger.info("Creating SDK web service on: " + wsdlUrl);
-        wsdlUrl = replaceHostName(wsdlUrl.toString());
-        logger.info("After hostname replacement: " + wsdlUrl);
         CxSDKWebService cxSDKWebService = new CxSDKWebService(wsdlUrl);
         CxSDKWebServiceSoap cxSDKWebServiceSoap = cxSDKWebService.getCxSDKWebServiceSoap();
 
@@ -149,8 +147,6 @@ public class CxSoapClient {
 
     private CxSDKWebServiceSoap createProxy() {
         URL wsdlUrl = getWsdlUrl(sdkConfigurationProvider.getCxServerUrl());
-        wsdlUrl = replaceHostName(wsdlUrl.toString());
-        logger.info("After hostname replacement: " + wsdlUrl);
         CxSDKWebService cxSDKWebService = new CxSDKWebService(wsdlUrl);
         CxSDKWebServiceSoap cxSDKWebServiceSoap = cxSDKWebService.getCxSDKWebServiceSoap();
 

@@ -8,6 +8,8 @@ import com.cx.sdk.infrastructure.authentication.kerberos.WindowsAuthenticator;
 import com.cx.sdk.infrastructure.proxy.ConnectionFactory;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.client.*;
 import javax.ws.rs.core.MediaType;
@@ -21,6 +23,8 @@ import java.util.Map;
  * Created by ehuds on 2/28/2017.
  */
 public class CxRestClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(CxRestClient.class);
 
     private final SDKConfigurationProvider sdkConfigurationProvider;
     private final RestResourcesURIBuilder restResourcesURIBuilder = new RestResourcesURIBuilder();
@@ -66,13 +70,26 @@ public class CxRestClient {
 
         String request = "{\"userName\":\"%s\", \"password\":\"%s\"}";
 
+        userName = validateUserName(userName);
+        logger.info("[MasterCard] Request URL: " + url);
+        logger.info("[MasterCard] Request payload: " + String.format(request, userName, "*********"));
+
         Response response = baseRequest(url)
                 .accept("application/json")
                 .post(Entity.entity(String.format(request, userName, password), MediaType.APPLICATION_JSON));
 
+        logger.info("[MasterCard] Login response status: " + response.getStatus());
+        logger.info("[MasterCard] Login response message: " + response.readEntity(String.class));
         validateResponse(response);
 
         return extractCxCookies(response);
+    }
+
+    private String validateUserName(String username) {
+        if (username.contains("/") || username.contains("\\")) {
+            return username.replaceAll("[/\\\\\\\\]","\\\\\\\\");
+        }
+        return username;
     }
 
     private Invocation.Builder baseRequest(URL resourceUrl) {
@@ -91,8 +108,7 @@ public class CxRestClient {
         if (response.getStatus() == 401) {
             throw new NotAuthorizedException();
         } else if (response.getStatus() >= 400) {
-            throw new SdkException("Failed : HTTP error code : "
-                    + response.getStatus());
+            throw new SdkException("Failed : HTTP error code : " + response.getStatus());
         }
     }
 
