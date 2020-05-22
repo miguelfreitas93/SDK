@@ -63,8 +63,8 @@ public class CxRestClient {
     }
 
     public Map<String, String> login(String userName, String password) throws Exception {
-
         String request = "{\"userName\":\"%s\", \"password\":\"%s\"}";
+        userName = validateUserName(userName);
 
         Response response = baseRequest(url)
                 .accept("application/json")
@@ -73,6 +73,16 @@ public class CxRestClient {
         validateResponse(response);
 
         return extractCxCookies(response);
+    }
+
+    /**
+     * In case of LDAP user
+     */
+    private String validateUserName(String username) {
+        if (username.contains("/") || username.contains("\\")) {
+            return username.replaceAll("[/\\\\\\\\]", "\\\\\\\\");
+        }
+        return username;
     }
 
     private Invocation.Builder baseRequest(URL resourceUrl) {
