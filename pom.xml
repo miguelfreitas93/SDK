@@ -6,13 +6,13 @@
 
     <groupId>com.cx.sdk</groupId>
     <artifactId>checkmarx-sdk</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>CX-SDK-API</module>
         <module>CX-SDK-Application</module>
-        <module>CX-SDK-Domain</module>
+        <module>CX-SDK-Domain</module>3
         <module>CX-SDK-Infrastructure</module>
         <module>CX-SDK-Application-Contracts</module>
     </modules>
