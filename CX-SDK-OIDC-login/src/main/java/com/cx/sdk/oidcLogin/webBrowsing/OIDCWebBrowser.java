@@ -14,10 +14,7 @@ import com.teamdev.jxbrowser.frame.Frame;
 import com.teamdev.jxbrowser.navigation.LoadUrlParams;
 import com.teamdev.jxbrowser.navigation.event.FrameLoadFinished;
 import com.teamdev.jxbrowser.net.HttpHeader;
-import com.teamdev.jxbrowser.net.callback.BeforeSendHeadersCallback;
-import com.teamdev.jxbrowser.net.callback.CanGetCookiesCallback;
-import com.teamdev.jxbrowser.net.callback.CanSetCookieCallback;
-import com.teamdev.jxbrowser.net.callback.VerifyCertificateCallback;
+import com.teamdev.jxbrowser.net.callback.*;
 import com.teamdev.jxbrowser.os.Environment;
 import com.teamdev.jxbrowser.view.swing.BrowserView;
 import javax.swing.*;
@@ -31,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static javax.swing.JOptionPane.OK_OPTION;
 
 public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
@@ -82,6 +81,8 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             return BeforeSendHeadersCallback.Response.override(headersList);
         });
 
+        engine.network().set(AuthenticateCallback.class, createAuthenticationPopup(this));
+
 
         browser = engine.newBrowser();
         String postData = getPostData();
@@ -121,6 +122,30 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         }
 
         return ENGINE;
+    }
+
+    private AuthenticateCallback createAuthenticationPopup(java.awt.Frame frame) {
+        return (params, tell) -> SwingUtilities.invokeLater(() -> {
+            JPanel userPanel = new JPanel();
+            userPanel.setLayout(new GridLayout(2, 2));
+            JLabel usernameLabel = new JLabel("Username:");
+            JLabel passwordLabel = new JLabel("Password:");
+            JTextField username = new JTextField();
+            JPasswordField password = new JPasswordField();
+            userPanel.add(usernameLabel);
+            userPanel.add(username);
+            userPanel.add(passwordLabel);
+            userPanel.add(password);
+            int input = JOptionPane.showConfirmDialog(frame, userPanel, "Enter your password:",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (input == OK_OPTION) {
+                // Authenticate with the particular username and password
+                tell.authenticate(username.getText(), new String(password.getPassword()));
+            } else {
+                // Otherwise cancel the authentication.
+                tell.cancel();
+            }
+        });
     }
 
     @Override
