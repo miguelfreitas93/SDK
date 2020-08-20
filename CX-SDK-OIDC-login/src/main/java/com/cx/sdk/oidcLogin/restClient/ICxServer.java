@@ -18,4 +18,6 @@ public interface ICxServer {
     Permissions getPermissionsFromUserInfo(String accessToken) throws CxValidateResponseException;
 
     String getCxVersion();
+
+    Object getCxVersion(String clientName);
 }

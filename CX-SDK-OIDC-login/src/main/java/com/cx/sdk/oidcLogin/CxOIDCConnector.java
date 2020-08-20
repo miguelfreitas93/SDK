@@ -19,7 +19,7 @@ public class CxOIDCConnector {
     }
 
     public LoginData connect() throws Exception {
-        if (cxServer.getCxVersion().equals("Pre 9.0")) {
+        if (cxServer.getCxVersion(clientName).equals("Pre 9.0")) {
             throw new CxRestLoginException("The Cx version is either older than 9.0 or the server can't be reached");
         }
 

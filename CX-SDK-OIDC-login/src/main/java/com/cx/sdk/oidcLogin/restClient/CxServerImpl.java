@@ -84,7 +84,11 @@ public class CxServerImpl implements ICxServer {
         return serverURL;
     }
 
-    public String getCxVersion() {
+    public String getCxVersion(){
+        return getCxVersion("");
+    }
+
+    public String getCxVersion(String clientName) {
         HttpResponse response;
         HttpUriRequest request;
         String version;
@@ -92,6 +96,7 @@ public class CxServerImpl implements ICxServer {
             request = RequestBuilder
                     .get()
                     .setUri(versionURL)
+                    .setHeader("cxOrigin",clientName)
                     .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                     .build();
             response = client.execute(request);
