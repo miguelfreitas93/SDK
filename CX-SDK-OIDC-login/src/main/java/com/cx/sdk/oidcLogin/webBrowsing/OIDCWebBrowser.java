@@ -4,6 +4,7 @@ import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
 import com.google.common.base.Splitter;
 import com.teamdev.jxbrowser.browser.Browser;
+import com.teamdev.jxbrowser.browser.event.BrowserClosed;
 import com.teamdev.jxbrowser.dom.Document;
 import com.teamdev.jxbrowser.dom.Element;
 import com.teamdev.jxbrowser.engine.Engine;
@@ -93,19 +94,25 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         String postData = getPostData();
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                close();
-                if (response == null) {
-                    response = new AuthenticationData(true);
-                }
-                notifyAuthenticationFinish();
-            }
-        });
+
         SwingUtilities.invokeLater(() -> {
+            browser.on(BrowserClosed.class, event ->
+                    SwingUtilities.invokeLater(() -> {
+                        this.setVisible(false);
+                        this.dispose();
+                    }));
             BrowserView browserView = BrowserView.newInstance(browser);
             contentPane.add(browserView);
+            addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    SwingUtilities.invokeLater(engine::close);
+                    if (response == null) {
+                        response = new AuthenticationData(true);
+                    }
+                    notifyAuthenticationFinish();
+                }
+            });
             setSize(700, 650);
             setLocationRelativeTo(null);
             getContentPane().add(contentPane, BorderLayout.CENTER);

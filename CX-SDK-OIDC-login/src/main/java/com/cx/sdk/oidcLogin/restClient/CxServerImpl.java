@@ -190,7 +190,7 @@ public class CxServerImpl implements ICxServer {
                 sastPermissions.contains(Consts.MANAGE_RESULTS_EXPLOITABILITY));
     }
 
-    private Long getAccessTokenExpirationInMilli(int accessTokenExpirationInSec) {
+    private Long getAccessTokenExpirationInMilli(long accessTokenExpirationInSec) {
         long currentTime = System.currentTimeMillis();
         long accessTokenExpInMilli = accessTokenExpirationInSec * 1000;
         return currentTime + accessTokenExpInMilli;
