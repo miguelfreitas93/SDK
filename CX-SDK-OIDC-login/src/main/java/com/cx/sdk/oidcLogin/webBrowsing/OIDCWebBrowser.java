@@ -106,7 +106,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent e) {
-                    SwingUtilities.invokeLater(engine::close);
+                    close();
                     if (response == null) {
                         response = new AuthenticationData(true);
                     }
@@ -119,8 +119,6 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             setVisible(true);
             browser.navigation().loadUrlAndWait(restUrl + "?" + postData);
         });
-
-
     }
 
     private static void close() {
