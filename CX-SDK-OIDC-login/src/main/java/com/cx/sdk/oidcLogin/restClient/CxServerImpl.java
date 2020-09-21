@@ -84,22 +84,25 @@ public class CxServerImpl implements ICxServer {
         return serverURL;
     }
 
-    public String getCxVersion() {
+    public String getCxVersion() throws IOException, CxValidateResponseException {
+        return getCxVersion("");
+    }
+
+    public String getCxVersion(String clientName) throws CxValidateResponseException, IOException {
         HttpResponse response;
         HttpUriRequest request;
         String version;
-        try {
-            request = RequestBuilder
-                    .get()
-                    .setUri(versionURL)
-                    .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
-                    .build();
-            response = client.execute(request);
-            validateResponse(response, 200, GET_VERSION_ERROR);
-            version = new BasicResponseHandler().handleResponse(response);
-        } catch (IOException | CxValidateResponseException e) {
-            version = "Pre 9.0";
-        }
+
+        request = RequestBuilder
+                .get()
+                .setUri(versionURL)
+                .setHeader("cxOrigin", clientName)
+                .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
+                .build();
+        response = client.execute(request);
+        validateResponse(response, 200, GET_VERSION_ERROR);
+        version = new BasicResponseHandler().handleResponse(response);
+
 
         return version;
     }
@@ -121,6 +124,7 @@ public class CxServerImpl implements ICxServer {
             Long accessTokenExpirationInMilli = getAccessTokenExpirationInMilli(jsonResponse.getExpiresIn());
             return new LoginData(jsonResponse.getAccessToken(), jsonResponse.getRefreshToken(), accessTokenExpirationInMilli, jsonResponse.getIdToken());
         } catch (IOException e) {
+            logger.trace("Failed to login", e);
             throw new CxRestLoginException("Failed to login: " + e.getMessage());
         } finally {
             HttpClientUtils.closeQuietly(loginResponse);
@@ -146,6 +150,7 @@ public class CxServerImpl implements ICxServer {
             Long accessTokenExpirationInMilli = getAccessTokenExpirationInMilli(jsonResponse.getExpiresIn());
             return new LoginData(jsonResponse.getAccessToken(), jsonResponse.getRefreshToken(), accessTokenExpirationInMilli, jsonResponse.getIdToken());
         } catch (IOException e) {
+            logger.trace("Failed to get new access token from refresh token: ", e);
             throw new CxRestLoginException("Failed to get new access token from refresh token: " + e.getMessage());
         } finally {
             HttpClientUtils.closeQuietly(loginResponse);
@@ -185,7 +190,7 @@ public class CxServerImpl implements ICxServer {
                 sastPermissions.contains(Consts.MANAGE_RESULTS_EXPLOITABILITY));
     }
 
-    private Long getAccessTokenExpirationInMilli(int accessTokenExpirationInSec) {
+    private Long getAccessTokenExpirationInMilli(long accessTokenExpirationInSec) {
         long currentTime = System.currentTimeMillis();
         long accessTokenExpInMilli = accessTokenExpirationInSec * 1000;
         return currentTime + accessTokenExpInMilli;
@@ -205,6 +210,7 @@ public class CxServerImpl implements ICxServer {
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
             throw new CxValidateResponseException("Error parse REST response body: " + e.getMessage());
         }
     }

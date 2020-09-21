@@ -4,6 +4,7 @@ import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
 import com.google.common.base.Splitter;
 import com.teamdev.jxbrowser.browser.Browser;
+import com.teamdev.jxbrowser.browser.event.BrowserClosed;
 import com.teamdev.jxbrowser.dom.Document;
 import com.teamdev.jxbrowser.dom.Element;
 import com.teamdev.jxbrowser.engine.Engine;
@@ -17,6 +18,7 @@ import com.teamdev.jxbrowser.net.HttpHeader;
 import com.teamdev.jxbrowser.net.callback.*;
 import com.teamdev.jxbrowser.os.Environment;
 import com.teamdev.jxbrowser.view.swing.BrowserView;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -28,7 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
+import static com.teamdev.jxbrowser.os.Environment.isMac;
 import static javax.swing.JOptionPane.OK_OPTION;
 
 public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
@@ -61,7 +65,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     }
 
     private void initBrowser(String restUrl) {
-        if (Environment.isMac()) {
+        if (isMac()) {
             System.setProperty("java.ipc.external", "true");
             System.setProperty("jxbrowser.ipc.external", "true");
 
@@ -85,34 +89,53 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
 
         browser = engine.newBrowser();
+        browser.navigation().on(FrameLoadFinished.class, AddResponsesHandler());
+
         String postData = getPostData();
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
-        browser.navigation().loadUrlAndWait(restUrl+"?"+postData);
-        contentPane.add(BrowserView.newInstance(browser));
-        browser.navigation().on(FrameLoadFinished.class, AddResponsesHandler());
-        setSize(700, 650);
-        setLocationRelativeTo(null);
-        getContentPane().add(contentPane, BorderLayout.CENTER);
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                engine.close();
-                if (response == null) {
-                    response = new AuthenticationData(true);
+
+        SwingUtilities.invokeLater(() -> {
+            browser.on(BrowserClosed.class, event ->
+                    SwingUtilities.invokeLater(() -> {
+                        this.setVisible(false);
+                        this.dispose();
+                    }));
+            BrowserView browserView = BrowserView.newInstance(browser);
+            contentPane.add(browserView);
+            addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    close();
+                    if (response == null) {
+                        response = new AuthenticationData(true);
+                    }
+                    notifyAuthenticationFinish();
                 }
-                notifyAuthenticationFinish();
-            }
+            });
+            setSize(700, 650);
+            setLocationRelativeTo(null);
+            getContentPane().add(contentPane, BorderLayout.CENTER);
+            setVisible(true);
+            browser.navigation().loadUrlAndWait(restUrl + "?" + postData);
         });
-        setVisible(true);
+    }
+
+    private static void close() {
+        if (isMac()) {
+            // On macOS the engine must be closed in UI thread
+            ENGINE.close();
+        } else {
+            // On Windows and Linux it must be closed in non-UI thread
+            new Thread(ENGINE::close).start();
+        }
     }
 
     public static Engine defaultEngine() {
-        if(ENGINE == null || ENGINE.isClosed() ) {
+        if (ENGINE == null || ENGINE.isClosed()) {
             ENGINE = Engine.newInstance(EngineOptions
                     .newBuilder(RenderingMode.HARDWARE_ACCELERATED)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36")
-                    .enableIncognito()
                     .addSwitch("--disable-google-traffic")
                     .build());
             ENGINE.network().set(CanGetCookiesCallback.class, params -> CanGetCookiesCallback.Response.can());
@@ -153,12 +176,12 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         Engine engine = defaultEngine();
         browser = engine.newBrowser();
         browser.navigation().loadUrl(endSessionEndPoint + String.format(END_SESSION_FORMAT, idToken, serverUrl + "/cxwebclient/"));
-        browser.navigation().on(FrameLoadFinished.class,disposeOnLoadDone());
+        browser.navigation().on(FrameLoadFinished.class, disposeOnLoadDone());
     }
 
     private Observer<FrameLoadFinished> disposeOnLoadDone() {
         return param -> {
-          param.frame().browser().close();
+            param.frame().browser().close();
         };
     }
 
