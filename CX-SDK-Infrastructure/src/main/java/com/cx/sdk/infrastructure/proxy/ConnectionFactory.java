@@ -2,7 +2,7 @@ package com.cx.sdk.infrastructure.proxy;
 
 import com.cx.sdk.application.contracts.providers.SDKConfigurationProvider;
 import com.cx.sdk.domain.entities.ProxyParams;
-import com.sun.jersey.client.urlconnection.HttpURLConnectionFactory;
+import org.glassfish.jersey.client.HttpUrlConnectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
@@ -19,7 +19,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-public class ConnectionFactory implements HttpURLConnectionFactory {
+public class ConnectionFactory implements HttpUrlConnectorProvider.ConnectionFactory {
     private final SDKConfigurationProvider sdkConfigurationProvider;
     private SSLContext sslContext;
     private static final Logger logger = LoggerFactory.getLogger(ConnectionFactory.class);
@@ -29,8 +29,7 @@ public class ConnectionFactory implements HttpURLConnectionFactory {
         this.sdkConfigurationProvider = sdkConfigurationProvider;
     }
 
-    @Override
-    public HttpURLConnection getHttpURLConnection(URL url) throws IOException {
+    private HttpURLConnection getHttpURLConnection(URL url) throws IOException {
         Proxy proxy = null;
         Proxy.Type proxyType = null;
         ProxyParams proxyParams = sdkConfigurationProvider.getProxyParams();
@@ -78,4 +77,8 @@ public class ConnectionFactory implements HttpURLConnectionFactory {
     }
 
 
+    @Override
+    public HttpURLConnection getConnection(URL url) throws IOException {
+        return getHttpURLConnection(url);
+    }
 }

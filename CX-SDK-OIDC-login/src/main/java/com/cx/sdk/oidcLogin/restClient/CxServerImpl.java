@@ -54,8 +54,8 @@ public class CxServerImpl implements ICxServer {
     private HttpClient client;
     private List<Header> headers = new ArrayList<>();
     private String tokenEndpoint = Consts.SAST_PREFIX + "/identity/connect/token";
-
-    private String userInfoEndpoint = Consts.USER_INFO_ENDPOINT;
+    private final String clientName;
+    private final String userInfoEndpoint = Consts.USER_INFO_ENDPOINT;
     public static final String GET_VERSION_ERROR = "Get Version API not found, server not found or version is older than 9.0";
     private static final String AUTHENTICATION_FAILED = " User authentication failed";
     private static final String INFO_FAILED = "User info failed";
@@ -70,6 +70,18 @@ public class CxServerImpl implements ICxServer {
         this.sessionEndURL = serverURL + END_SESSION_ENDPOINT;
         this.logoutURL = serverURL + LOGOUT_ENDPOINT;
         this.versionURL = serverURL + VERSION_END_POINT;
+        this.clientName = "";
+        setClient();
+    }
+
+    public CxServerImpl(String serverURL, String clientName) {
+        this.serverURL = serverURL;
+        this.tokenEndpointURL = serverURL + tokenEndpoint;
+        this.userInfoURL = serverURL + userInfoEndpoint;
+        this.sessionEndURL = serverURL + END_SESSION_ENDPOINT;
+        this.logoutURL = serverURL + LOGOUT_ENDPOINT;
+        this.versionURL = serverURL + VERSION_END_POINT;
+        this.clientName = clientName;
         setClient();
     }
 
@@ -92,6 +104,7 @@ public class CxServerImpl implements ICxServer {
             request = RequestBuilder
                     .get()
                     .setUri(versionURL)
+                    .setHeader("cxOrigin",clientName)
                     .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                     .build();
             response = client.execute(request);
