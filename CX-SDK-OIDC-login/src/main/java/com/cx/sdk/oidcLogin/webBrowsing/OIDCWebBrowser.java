@@ -1,5 +1,6 @@
 package com.cx.sdk.oidcLogin.webBrowsing;
 
+import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
 import com.google.common.base.Splitter;
@@ -33,6 +34,11 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     private Map<String, String> urlParamsMap;
     private String serverUrl;
     private String endSessionEndPoint;
+    private ProxyParams proxyParams;
+
+    public OIDCWebBrowser(ProxyParams proxyParams) {
+        this.proxyParams = proxyParams;
+    }
 
     @Override
     public AuthenticationData browseAuthenticationData(String serverUrl, String clientName) throws Exception {
@@ -68,6 +74,18 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             @Override
             public void onBeforeSendHeaders(BeforeSendHeadersParams params) {
                 params.getHeadersEx().setHeader("cxOrigin", clientName);
+            }
+        });
+
+        browserContext.getNetworkService().setNetworkDelegate(new DefaultNetworkDelegate() {
+            @Override
+            public boolean onAuthRequired(AuthRequiredParams params) {
+                if (params.isProxy() && proxyParams != null) {
+                    params.setUsername(proxyParams.getUsername());
+                    params.setPassword(proxyParams.getPassword());
+                    return false;
+                }
+                return true;
             }
         });
         browser = new Browser(browserContext);

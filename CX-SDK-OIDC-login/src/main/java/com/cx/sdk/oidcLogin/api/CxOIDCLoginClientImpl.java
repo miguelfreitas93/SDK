@@ -1,5 +1,6 @@
 package com.cx.sdk.oidcLogin.api;
 
+import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.oidcLogin.CxOIDCConnector;
 import com.cx.sdk.oidcLogin.exceptions.CxRestClientException;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
@@ -11,6 +12,7 @@ import com.cx.sdk.oidcLogin.webBrowsing.IOIDCWebBrowser;
 import com.cx.sdk.oidcLogin.webBrowsing.LoginData;
 import com.cx.sdk.oidcLogin.webBrowsing.OIDCWebBrowser;
 
+
 import java.net.URL;
 
 public class CxOIDCLoginClientImpl implements CxOIDCLoginClient {
@@ -19,15 +21,23 @@ public class CxOIDCLoginClientImpl implements CxOIDCLoginClient {
     private ICxServer server;
     private IOIDCWebBrowser webBrowser;
     private LoginData loginData;
+    private final ProxyParams proxyParams;
 
     public CxOIDCLoginClientImpl(URL serverUrl, String clientName) {
         this.clientName = clientName;
-        this.server = new CxServerImpl(serverUrl.toString());
+        this.proxyParams = null;
+        this.server = new CxServerImpl(serverUrl.toString(),clientName);
+    }
+
+    public CxOIDCLoginClientImpl(URL serverUrl, String clientName, ProxyParams proxyParams) {
+        this.clientName = clientName;
+        this.proxyParams = proxyParams;
+        this.server = new CxServerImpl(serverUrl.toString(),clientName);
     }
 
 
     public LoginData login() throws Exception {
-        webBrowser = new OIDCWebBrowser();
+        webBrowser = new OIDCWebBrowser(proxyParams);
         CxOIDCConnector connector = new CxOIDCConnector(server, webBrowser, clientName);
         loginData = connector.connect();
 
