@@ -1,7 +1,6 @@
 package com.cx.sdk.infrastructure.token;
 
-import com.sun.jersey.core.util.MultivaluedMapImpl;
-
+import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import javax.ws.rs.core.MultivaluedMap;
 
 public class TokenEntityBuilder {
@@ -17,7 +16,7 @@ public class TokenEntityBuilder {
     public static final String SAST_REST_API_OFFLINE_ACCESS_CXARM_API = "sast_rest_api soap_api";
 
     public static MultivaluedMap createGetAccessTokenFromCredentialsParamsEntity(String userName, String password) {
-        MultivaluedMap formData = new MultivaluedMapImpl();
+        MultivaluedMap formData = new MultivaluedStringMap();
         formData.add(USERNAME_KEY, userName);
         formData.add(PASS_KEY, password);
         formData.add(GRANT_TYPE_KEY, PASS_KEY);
