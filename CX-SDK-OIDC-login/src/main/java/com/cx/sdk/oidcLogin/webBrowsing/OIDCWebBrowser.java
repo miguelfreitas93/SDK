@@ -75,19 +75,19 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             public void onBeforeSendHeaders(BeforeSendHeadersParams params) {
                 params.getHeadersEx().setHeader("cxOrigin", clientName);
             }
-        });
 
-        browserContext.getNetworkService().setNetworkDelegate(new DefaultNetworkDelegate() {
             @Override
             public boolean onAuthRequired(AuthRequiredParams params) {
                 if (params.isProxy() && proxyParams != null) {
                     params.setUsername(proxyParams.getUsername());
                     params.setPassword(proxyParams.getPassword());
                     return false;
+                } else {
+                    return super.onAuthRequired(params);
                 }
-                return true;
             }
         });
+
         browser = new Browser(browserContext);
         String postData = getPostData();
         LoadURLParams urlParams = new LoadURLParams(restUrl, postData);
