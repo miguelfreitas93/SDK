@@ -88,7 +88,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             }
         });
 
-        browser = new Browser(browserContext);
+        browser = new Browser(BrowserType.LIGHTWEIGHT,browserContext);
         String postData = getPostData();
         LoadURLParams urlParams = new LoadURLParams(restUrl, postData);
         String pathToImage = "/checkmarxIcon.jpg";
