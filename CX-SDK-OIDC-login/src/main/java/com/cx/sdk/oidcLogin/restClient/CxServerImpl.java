@@ -89,6 +89,8 @@ public class CxServerImpl implements ICxServer {
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultHeaders(headers);
         setSSLTls(builder, "TLSv1.2");
         disableCertificateValidation(builder);
+        //Add support proxy
+        builder.useSystemProperties();
         client = builder.build();
     }
 
