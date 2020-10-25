@@ -121,7 +121,7 @@ public class CxServerImpl implements ICxServer {
 
         response = client.execute(request);
         logger.debug("Print Get version response \n" + response.getStatusLine());
-        logger.debug("Print Get Version response \n" + response.getAllHeaders());
+        logger.debug("Print Get Version response \n" + Arrays.toString(response.getAllHeaders()));
         validateResponse(response, 200, GET_VERSION_ERROR);
         version = new BasicResponseHandler().handleResponse(response);
 
@@ -192,11 +192,12 @@ public class CxServerImpl implements ICxServer {
             headers.add(new BasicHeader(Consts.AUTHORIZATION_HEADER, Consts.BEARER + accessToken));
             headers.add(new BasicHeader("Content-Length", "0"));
             HttpClientBuilder builder = HttpClientBuilder.create();
+            //Add using proxy
+            builder.useSystemProperties();
             setSSLTls(builder, "TLSv1.2");
             disableCertificateValidation(builder);
             client = builder.setDefaultHeaders(headers).build();
-            //Add using proxy
-            builder.useSystemProperties();
+
             postRequest = RequestBuilder.post()
                     .setUri(userInfoURL)
                     .build();
@@ -265,13 +266,10 @@ public class CxServerImpl implements ICxServer {
 
     private HttpClientBuilder disableCertificateValidation(HttpClientBuilder builder) {
         try {
-            SSLContext disabledSSLContext = SSLContexts.custom().loadTrustMaterial(new TrustStrategy() {
-                public boolean isTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-                    return true;
-                }
-            }).build();
+            SSLContext disabledSSLContext = SSLContexts.custom().loadTrustMaterial((x509Certificates, s) -> true).build();
             builder.setSslcontext(disabledSSLContext);
             builder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+            builder.useSystemProperties();
         } catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
             logger.warn("Failed to disable certificate verification: " + e.getMessage());
         }
