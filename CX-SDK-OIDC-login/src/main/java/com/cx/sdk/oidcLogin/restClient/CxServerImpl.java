@@ -38,7 +38,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.cx.sdk.oidcLogin.constants.Consts.*;
 
@@ -114,11 +116,12 @@ public class CxServerImpl implements ICxServer {
                 .setHeader("cxOrigin", clientName)
                 .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                 .build();
-        //  this.projects.stream().map(com.cx.restclient.sast.dto.Project::getName).collect(Collectors.joining(",","Print full list of existing projects",""))
 
-        logger.debug("Print Get Version request " + request.getMethod().getBytes().toString());
+        logger.debug(" Print Get Version request line\n" + request.getRequestLine());
+
         response = client.execute(request);
-        logger.debug("Print Get Version response " + response.getAllHeaders());
+        logger.debug("Print Get version response \n" + response.getStatusLine());
+        logger.debug("Print Get Version response \n" + response.getAllHeaders());
         validateResponse(response, 200, GET_VERSION_ERROR);
         version = new BasicResponseHandler().handleResponse(response);
 
@@ -137,7 +140,9 @@ public class CxServerImpl implements ICxServer {
                     .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                     .setEntity(TokenHTTPEntityBuilder.createGetAccessTokenFromCodeParamsEntity(code, serverURL))
                     .build();
+            logger.debug("Print Request\n" + postRequest.getRequestLine());
             loginResponse = client.execute(postRequest);
+            logger.debug("Print response \n" + loginResponse.getStatusLine());
             validateResponse(loginResponse, 200, AUTHENTICATION_FAILED);
             AccessTokenDTO jsonResponse = parseJsonFromResponse(loginResponse, AccessTokenDTO.class);
             Long accessTokenExpirationInMilli = getAccessTokenExpirationInMilli(jsonResponse.getExpiresIn());
@@ -163,7 +168,9 @@ public class CxServerImpl implements ICxServer {
                     .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                     .setEntity(TokenHTTPEntityBuilder.createGetAccessTokenFromRefreshTokenParamsEntity(refreshToken))
                     .build();
+            logger.debug("Print Request\n" + postRequest.getRequestLine());
             loginResponse = client.execute(postRequest);
+            logger.debug("Print response \n" + loginResponse.getStatusLine());
             validateResponse(loginResponse, 200, AUTHENTICATION_FAILED);
             AccessTokenDTO jsonResponse = parseJsonFromResponse(loginResponse, AccessTokenDTO.class);
             Long accessTokenExpirationInMilli = getAccessTokenExpirationInMilli(jsonResponse.getExpiresIn());
@@ -188,10 +195,15 @@ public class CxServerImpl implements ICxServer {
             setSSLTls(builder, "TLSv1.2");
             disableCertificateValidation(builder);
             client = builder.setDefaultHeaders(headers).build();
+            //Add using proxy
+            builder.useSystemProperties();
             postRequest = RequestBuilder.post()
                     .setUri(userInfoURL)
                     .build();
+            //Add print request
+            logger.debug("Print Request\n" + postRequest.getRequestLine());
             userInfoResponse = client.execute(postRequest);
+            logger.debug("Print response \n" + userInfoResponse.getStatusLine());
             validateResponse(userInfoResponse, 200, INFO_FAILED);
             UserInfoDTO jsonResponse = parseJsonFromResponse(userInfoResponse, UserInfoDTO.class);
             permissions = getPermissions(jsonResponse);
