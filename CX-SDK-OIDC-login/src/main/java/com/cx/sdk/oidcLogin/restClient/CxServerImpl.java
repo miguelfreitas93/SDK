@@ -88,6 +88,7 @@ public class CxServerImpl implements ICxServer {
     private void setClient() {
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultHeaders(headers);
         setSSLTls(builder, "TLSv1.2");
+        logger.debug("Validate that TLSv is 1.2!!!1");
         disableCertificateValidation(builder);
         //Add support proxy
         builder.useSystemProperties();
@@ -113,7 +114,11 @@ public class CxServerImpl implements ICxServer {
                 .setHeader("cxOrigin", clientName)
                 .setHeader(HTTP.CONTENT_TYPE, ContentType.APPLICATION_FORM_URLENCODED.toString())
                 .build();
+        //  this.projects.stream().map(com.cx.restclient.sast.dto.Project::getName).collect(Collectors.joining(",","Print full list of existing projects",""))
+
+        logger.debug("Print Get Version request " + request.getMethod().getBytes().toString());
         response = client.execute(request);
+        logger.debug("Print Get Version response " + response.getAllHeaders());
         validateResponse(response, 200, GET_VERSION_ERROR);
         version = new BasicResponseHandler().handleResponse(response);
 
