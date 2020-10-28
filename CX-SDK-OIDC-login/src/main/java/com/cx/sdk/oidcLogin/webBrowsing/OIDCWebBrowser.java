@@ -159,25 +159,29 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             if (params.isProxy() && proxyParams != null) {
                 tell.authenticate(proxyParams.getUsername(),proxyParams.getPassword());
             }
-            JPanel userPanel = new JPanel();
-            userPanel.setLayout(new GridLayout(2, 2));
-            JLabel usernameLabel = new JLabel("Username:");
-            JLabel passwordLabel = new JLabel("Password:");
-            JTextField username = new JTextField();
-            JPasswordField password = new JPasswordField();
-            userPanel.add(usernameLabel);
-            userPanel.add(username);
-            userPanel.add(passwordLabel);
-            userPanel.add(password);
-            int input = JOptionPane.showConfirmDialog(frame, userPanel, "Enter your password:",
-                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            if (input == OK_OPTION) {
-                // Authenticate with the particular username and password
-                tell.authenticate(username.getText(), new String(password.getPassword()));
-            } else {
-                // Otherwise cancel the authentication.
-                tell.cancel();
+            else {
+                JPanel userPanel = new JPanel();
+                userPanel.setLayout(new GridLayout(2, 2));
+                JLabel usernameLabel = new JLabel("Username:");
+                JLabel passwordLabel = new JLabel("Password:");
+                JTextField username = new JTextField();
+                JPasswordField password = new JPasswordField();
+                userPanel.add(usernameLabel);
+                userPanel.add(username);
+                userPanel.add(passwordLabel);
+                userPanel.add(password);
+                int input = JOptionPane.showConfirmDialog(frame, userPanel,
+                        String.format("Server :%s require username and password,Enter your credentials:",params.url()),
+                        JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+                if (input == OK_OPTION) {
+                    // Authenticate with the particular username and password
+                    tell.authenticate(username.getText(), new String(password.getPassword()));
+                } else {
+                    // Otherwise cancel the authentication.
+                    tell.cancel();
+                }
             }
+
         });
     }
 
