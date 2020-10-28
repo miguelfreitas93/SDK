@@ -1,5 +1,6 @@
 package com.cx.sdk.oidcLogin.webBrowsing;
 
+import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.exceptions.CxRestLoginException;
 import com.google.common.base.Splitter;
@@ -48,6 +49,12 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     private String serverUrl;
     private String endSessionEndPoint;
     public static Engine ENGINE;
+
+    private ProxyParams proxyParams;
+
+    public OIDCWebBrowser(ProxyParams proxyParams) {
+        this.proxyParams = proxyParams;
+    }
 
     @Override
     public AuthenticationData browseAuthenticationData(String serverUrl, String clientName) throws Exception {
@@ -149,6 +156,9 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
     private AuthenticateCallback createAuthenticationPopup(java.awt.Frame frame) {
         return (params, tell) -> SwingUtilities.invokeLater(() -> {
+            if (params.isProxy() && proxyParams != null) {
+                tell.authenticate(proxyParams.getUsername(),proxyParams.getPassword());
+            }
             JPanel userPanel = new JPanel();
             userPanel.setLayout(new GridLayout(2, 2));
             JLabel usernameLabel = new JLabel("Username:");

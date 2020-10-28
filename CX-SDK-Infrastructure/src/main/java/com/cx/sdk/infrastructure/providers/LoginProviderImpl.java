@@ -41,7 +41,7 @@ public class LoginProviderImpl implements LoginProvider {
         this.sdkConfigurationProvider = sdkConfigurationProvider;
         connectionFactory = new ConnectionFactory(sdkConfigurationProvider);
         cxOIDCLoginClient = new CxOIDCLoginClientImpl(sdkConfigurationProvider.getCxServerUrl(),
-                sdkConfigurationProvider.getCxOriginName());
+                sdkConfigurationProvider.getCxOriginName(),sdkConfigurationProvider.getProxyParams());
     }
 
 
