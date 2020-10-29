@@ -19,6 +19,8 @@ import com.teamdev.jxbrowser.net.HttpHeader;
 import com.teamdev.jxbrowser.net.callback.*;
 import com.teamdev.jxbrowser.os.Environment;
 import com.teamdev.jxbrowser.view.swing.BrowserView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -49,21 +51,30 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     private String serverUrl;
     private String endSessionEndPoint;
     public static Engine ENGINE;
+    private final Logger logger = LoggerFactory.getLogger(OIDCWebBrowser.class);
 
     private ProxyParams proxyParams;
 
     public OIDCWebBrowser(ProxyParams proxyParams) {
         this.proxyParams = proxyParams;
     }
-
     @Override
     public AuthenticationData browseAuthenticationData(String serverUrl, String clientName) throws Exception {
+        logger.info("AuthenticationData initializing.. ");
         this.clientName = clientName;
+        logger.info("Print clientName: " + this.clientName);
         this.serverUrl = serverUrl;
+        logger.info("Print serverUrl: " + this.serverUrl);
         String authorizationEndpointUrl = serverUrl + Consts.AUTHORIZATION_ENDPOINT;
+        logger.info("Print authorizationEndpointUrl: " + authorizationEndpointUrl);
         endSessionEndPoint = serverUrl + Consts.END_SESSION_ENDPOINT;
+        logger.info("Print endSessionEndPoint: " + endSessionEndPoint);
+        logger.info("Start initBrowser.");
         initBrowser(authorizationEndpointUrl);
+        logger.info("Finish initBrowser");
+        logger.info("Start waiting to Authentication.");
         waitForAuthentication();
+        logger.info("Finish waiting for Authentication.");
         if (hasErrors()) {
             throw new CxRestLoginException(error);
         }
@@ -205,8 +216,10 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     }
 
     private void waitForAuthentication() {
+        logger.info("waitForAuthentication");
         synchronized (lock) {
             try {
+                logger.info("Waiting...");
                 lock.wait();
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -234,6 +247,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
     private void notifyAuthenticationFinish() {
         synchronized (lock) {
+            logger.info("will notify");
             lock.notify();
         }
     }
