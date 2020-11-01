@@ -25,16 +25,10 @@ public class CxOIDCLoginClientImpl implements CxOIDCLoginClient {
     private final ProxyParams proxyParams;
     private final Logger logger = LoggerFactory.getLogger(CxOIDCLoginClientImpl.class);
 
-    public CxOIDCLoginClientImpl(URL serverUrl, String clientName) {
-        this.clientName = clientName;
-        this.proxyParams = null;
-        this.server = new CxServerImpl(serverUrl.toString(),clientName);
-    }
-
     public CxOIDCLoginClientImpl(URL serverUrl, String clientName, ProxyParams proxyParams) {
         this.clientName = clientName;
         this.proxyParams = proxyParams;
-        this.server = new CxServerImpl(serverUrl.toString(),clientName);
+        this.server = new CxServerImpl(serverUrl.toString(),clientName,proxyParams);
     }
 
 
