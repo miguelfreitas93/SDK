@@ -85,7 +85,7 @@ public class CxServerImpl implements ICxServer {
         setClient();
     }
 
-    public CxServerImpl(String toString, String clientName, ProxyParams proxyParams) {
+    public CxServerImpl(String serverURL, String clientName, ProxyParams proxyParams) {
         this.serverURL = serverURL;
         this.tokenEndpointURL = serverURL + tokenEndpoint;
         this.userInfoURL = serverURL + userInfoEndpoint;
