@@ -94,22 +94,27 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
         browser.loadURL(urlParams);
-        contentPane.add(new BrowserView(browser));
-        browser.addLoadListener(AddResponsesHandler());
-        setSize(700, 650);
-        setLocationRelativeTo(null);
-        getContentPane().add(contentPane, BorderLayout.CENTER);
-        addWindowListener(new WindowAdapter() {
+        SwingUtilities.invokeLater(new Runnable() {
             @Override
-            public void windowClosing(WindowEvent e) {
-                browser.dispose();
-                if (response == null) {
-                    response = new AuthenticationData(true);
-                }
-                notifyAuthenticationFinish();
+            public void run() {
+                contentPane.add(new BrowserView(browser));
+                browser.addLoadListener(AddResponsesHandler());
+                setSize(700, 650);
+                setLocationRelativeTo(null);
+                getContentPane().add(contentPane, BorderLayout.CENTER);
+                addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowClosing(WindowEvent e) {
+                        browser.dispose();
+                        if (response == null) {
+                            response = new AuthenticationData(true);
+                        }
+                        notifyAuthenticationFinish();
+                    }
+                });
+                setVisible(true);
             }
         });
-        setVisible(true);
     }
 
     @Override
