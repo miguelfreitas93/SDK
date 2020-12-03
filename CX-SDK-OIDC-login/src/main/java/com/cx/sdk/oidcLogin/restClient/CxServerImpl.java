@@ -31,9 +31,7 @@ import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.http.ssl.TrustStrategy;
 import org.apache.log4j.Logger;
-
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import java.io.BufferedReader;
@@ -43,12 +41,9 @@ import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.cx.sdk.oidcLogin.constants.Consts.*;
 
@@ -99,12 +94,14 @@ public class CxServerImpl implements ICxServer {
 
     private void setClient() {
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultHeaders(headers);
-        setSSLTls(builder, "TLSv1.2");
+        setSSLTls("TLSv1.2");
         logger.debug("Validate that TLSv is 1.2!!!");
         disableCertificateValidation(builder);
-        setCustomProxy(builder,proxyParams);
-        //Add support proxy
-//        builder.useSystemProperties();
+        //Add using proxy
+        if(!isCustomProxySet(proxyParams))
+            builder.useSystemProperties();
+        else
+            setCustomProxy(builder,proxyParams);
         client = builder.build();
     }
 
@@ -203,10 +200,13 @@ public class CxServerImpl implements ICxServer {
             headers.add(new BasicHeader(Consts.AUTHORIZATION_HEADER, Consts.BEARER + accessToken));
             headers.add(new BasicHeader("Content-Length", "0"));
             HttpClientBuilder builder = HttpClientBuilder.create();
-            setCustomProxy(builder,proxyParams);
+
             //Add using proxy
-//            builder.useSystemProperties();
-            setSSLTls(builder, "TLSv1.2");
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
+            setSSLTls("TLSv1.2");
             disableCertificateValidation(builder);
             client = builder.setDefaultHeaders(headers).build();
 
@@ -281,13 +281,13 @@ public class CxServerImpl implements ICxServer {
         return s == null || s.isEmpty();
     }
 
-    private void setCustomProxy(HttpClientBuilder cb, ProxyParams proxyConfig) {
-        if (proxyConfig == null ||
-                (proxyConfig.getServer() != null && !proxyConfig.getServer().isEmpty()) ||
-                proxyConfig.getPort() == 0) {
-            return;
-        }
+    private boolean isCustomProxySet(ProxyParams proxyConfig){
+        return proxyConfig != null &&
+                proxyConfig.getServer() != null && !proxyConfig.getServer().isEmpty() &&
+                proxyConfig.getPort() != 0;
+    }
 
+    private void setCustomProxy(HttpClientBuilder cb, ProxyParams proxyConfig) {
         String scheme = proxyConfig.getType();
         HttpHost proxy = new HttpHost(proxyConfig.getServer(), proxyConfig.getPort(), scheme);
         if (!isEmpty(proxyConfig.getUsername()) &&
@@ -309,8 +309,11 @@ public class CxServerImpl implements ICxServer {
             SSLContext disabledSSLContext = SSLContexts.custom().loadTrustMaterial((x509Certificates, s) -> true).build();
             builder.setSslcontext(disabledSSLContext);
             builder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-            setCustomProxy(builder,proxyParams);
-//            builder.useSystemProperties();
+            //Add using proxy
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
         } catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
             logger.warn("Failed to disable certificate verification: " + e.getMessage());
         }
@@ -318,7 +321,7 @@ public class CxServerImpl implements ICxServer {
         return builder;
     }
 
-    private void setSSLTls(HttpClientBuilder builder, String protocol) {
+    private void setSSLTls(String protocol) {
         try {
             final SSLContext sslContext = SSLContext.getInstance(protocol);
             sslContext.init(null, null, null);
