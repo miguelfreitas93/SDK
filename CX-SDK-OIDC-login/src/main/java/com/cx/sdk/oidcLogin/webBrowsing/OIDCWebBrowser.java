@@ -12,6 +12,8 @@ import com.teamdev.jxbrowser.chromium.events.LoadListener;
 import com.teamdev.jxbrowser.chromium.internal.Environment;
 import com.teamdev.jxbrowser.chromium.swing.BrowserView;
 import com.teamdev.jxbrowser.chromium.swing.DefaultNetworkDelegate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -35,6 +37,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     private String serverUrl;
     private String endSessionEndPoint;
     private ProxyParams proxyParams;
+    private final Logger logger = LoggerFactory.getLogger(OIDCWebBrowser.class);
 
     public OIDCWebBrowser(ProxyParams proxyParams) {
         this.proxyParams = proxyParams;
@@ -57,6 +60,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
     private void initBrowser(String restUrl) {
         if (Environment.isMac()) {
+            logger.info("Run On MAC");
             System.setProperty("java.ipc.external", "true");
             System.setProperty("jxbrowser.ipc.external", "true");
 
@@ -79,8 +83,10 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             @Override
             public boolean onAuthRequired(AuthRequiredParams params) {
                 if (params.isProxy() && proxyParams != null) {
+                    logger.info("Login with Proxy");
                     params.setUsername(proxyParams.getUsername());
                     params.setPassword(proxyParams.getPassword());
+                    logger.info("Proxy username: " + proxyParams.getUsername());
                     return false;
                 } else {
                     return super.onAuthRequired(params);
@@ -90,6 +96,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
 
         browser = new Browser(BrowserType.LIGHTWEIGHT,browserContext);
         String postData = getPostData();
+        logger.info("Print PostData: " + postData);
         LoadURLParams urlParams = new LoadURLParams(restUrl, postData);
         String pathToImage = "/checkmarxIcon.jpg";
         setIconImage(new ImageIcon(getClass().getResource(pathToImage), "checkmarx icon").getImage());
@@ -97,7 +104,9 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
+                logger.info("Open browser ");
                 contentPane.add(new BrowserView(browser));
+                logger.info("Open popup");
                 browser.addLoadListener(AddResponsesHandler());
                 setSize(700, 650);
                 setLocationRelativeTo(null);
@@ -105,6 +114,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
                 addWindowListener(new WindowAdapter() {
                     @Override
                     public void windowClosing(WindowEvent e) {
+                        logger.info("Run browser.dispose()");
                         browser.dispose();
                         if (response == null) {
                             response = new AuthenticationData(true);
@@ -169,11 +179,13 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     }
 
     private LoadAdapter AddResponsesHandler() {
+        logger.info("Run AddResponsesHandler");
         return new LoadAdapter() {
             @Override
             public void onFinishLoadingFrame(FinishLoadingEvent event) {
                 handleErrorResponse(event);
                 handleResponse(event);
+                logger.info("Print response.code: " + response.code);
                 if (response.code != null || hasErrors())
                     closePopup();
             }
@@ -258,6 +270,8 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     }
 
     private boolean hasErrors() {
+        logger.info("Has Error? ");
+        logger.info("Print error: " + error);
         return error != null && !error.isEmpty();
     }
 
@@ -276,6 +290,7 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
     }
 
     private void closePopup() {
+        logger.info("ClosePopup");
         dispatchEvent(new WindowEvent(OIDCWebBrowser.this, WindowEvent.WINDOW_CLOSING));
     }
 
