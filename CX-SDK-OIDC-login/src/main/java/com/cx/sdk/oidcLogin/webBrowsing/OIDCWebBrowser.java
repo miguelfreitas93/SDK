@@ -135,8 +135,8 @@ public class OIDCWebBrowser extends JFrame implements IOIDCWebBrowser {
             setLocationRelativeTo(null);
             getContentPane().add(contentPane, BorderLayout.CENTER);
             setVisible(true);
-            browser.navigation().loadUrlAndWait(restUrl + "?" + postData);
         });
+        browser.navigation().loadUrlAndWait(restUrl + "?" + postData);
     }
 
     private static void close() {

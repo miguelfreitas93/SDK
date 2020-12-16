@@ -1,5 +1,6 @@
 package com.cx.sdk.oidcLogin.restClient;
 
+import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.dto.AccessTokenDTO;
 import com.cx.sdk.oidcLogin.dto.UserInfoDTO;
@@ -11,21 +12,26 @@ import com.cx.sdk.oidcLogin.webBrowsing.LoginData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.HttpClientUtils;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.ProxyAuthenticationStrategy;
+import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.http.ssl.TrustStrategy;
 import org.apache.log4j.Logger;
-
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import java.io.BufferedReader;
@@ -35,12 +41,9 @@ import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.cx.sdk.oidcLogin.constants.Consts.*;
 
@@ -52,7 +55,7 @@ public class CxServerImpl implements ICxServer {
     private final String sessionEndURL;
     private final String logoutURL;
     private final String versionURL;
-
+    private final ProxyParams proxyParams;
     private HttpClient client;
     private List<Header> headers = new ArrayList<>();
     private String tokenEndpoint = Consts.SAST_PREFIX + "/identity/connect/token";
@@ -73,10 +76,11 @@ public class CxServerImpl implements ICxServer {
         this.logoutURL = serverURL + LOGOUT_ENDPOINT;
         this.versionURL = serverURL + VERSION_END_POINT;
         this.clientName = "";
+        this.proxyParams = null;
         setClient();
     }
 
-    public CxServerImpl(String serverURL, String clientName) {
+    public CxServerImpl(String serverURL, String clientName, ProxyParams proxyParams) {
         this.serverURL = serverURL;
         this.tokenEndpointURL = serverURL + tokenEndpoint;
         this.userInfoURL = serverURL + userInfoEndpoint;
@@ -84,16 +88,20 @@ public class CxServerImpl implements ICxServer {
         this.logoutURL = serverURL + LOGOUT_ENDPOINT;
         this.versionURL = serverURL + VERSION_END_POINT;
         this.clientName = clientName;
+        this.proxyParams = proxyParams;
         setClient();
     }
 
     private void setClient() {
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultHeaders(headers);
-        setSSLTls(builder, "TLSv1.2");
+        setSSLTls("TLSv1.2");
         logger.debug("Validate that TLSv is 1.2!!!");
         disableCertificateValidation(builder);
-        //Add support proxy
-        builder.useSystemProperties();
+        //Add using proxy
+        if(!isCustomProxySet(proxyParams))
+            builder.useSystemProperties();
+        else
+            setCustomProxy(builder,proxyParams);
         client = builder.build();
     }
 
@@ -192,9 +200,13 @@ public class CxServerImpl implements ICxServer {
             headers.add(new BasicHeader(Consts.AUTHORIZATION_HEADER, Consts.BEARER + accessToken));
             headers.add(new BasicHeader("Content-Length", "0"));
             HttpClientBuilder builder = HttpClientBuilder.create();
+
             //Add using proxy
-            builder.useSystemProperties();
-            setSSLTls(builder, "TLSv1.2");
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
+            setSSLTls("TLSv1.2");
             disableCertificateValidation(builder);
             client = builder.setDefaultHeaders(headers).build();
 
@@ -264,12 +276,44 @@ public class CxServerImpl implements ICxServer {
         return result;
     }
 
+
+    private boolean isEmpty(String s){
+        return s == null || s.isEmpty();
+    }
+
+    private boolean isCustomProxySet(ProxyParams proxyConfig){
+        return proxyConfig != null &&
+                proxyConfig.getServer() != null && !proxyConfig.getServer().isEmpty() &&
+                proxyConfig.getPort() != 0;
+    }
+
+    private void setCustomProxy(HttpClientBuilder cb, ProxyParams proxyConfig) {
+        String scheme = proxyConfig.getType();
+        HttpHost proxy = new HttpHost(proxyConfig.getServer(), proxyConfig.getPort(), scheme);
+        if (!isEmpty(proxyConfig.getUsername()) &&
+                !isEmpty(proxyConfig.getPassword())) {
+            UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(proxyConfig.getUsername(), proxyConfig.getPassword());
+            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+            credsProvider.setCredentials(new AuthScope(proxy), credentials);
+            cb.setDefaultCredentialsProvider(credsProvider);
+        }
+
+        logger.info("Setting proxy for Checkmarx http client");
+        cb.setProxy(proxy);
+        cb.setRoutePlanner(new DefaultProxyRoutePlanner(proxy));
+        cb.setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
+    }
+
     private HttpClientBuilder disableCertificateValidation(HttpClientBuilder builder) {
         try {
             SSLContext disabledSSLContext = SSLContexts.custom().loadTrustMaterial((x509Certificates, s) -> true).build();
             builder.setSslcontext(disabledSSLContext);
             builder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-            builder.useSystemProperties();
+            //Add using proxy
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
         } catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
             logger.warn("Failed to disable certificate verification: " + e.getMessage());
         }
@@ -277,7 +321,7 @@ public class CxServerImpl implements ICxServer {
         return builder;
     }
 
-    private void setSSLTls(HttpClientBuilder builder, String protocol) {
+    private void setSSLTls(String protocol) {
         try {
             final SSLContext sslContext = SSLContext.getInstance(protocol);
             sslContext.init(null, null, null);
