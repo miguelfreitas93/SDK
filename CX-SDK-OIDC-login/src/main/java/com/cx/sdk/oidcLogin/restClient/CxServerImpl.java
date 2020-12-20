@@ -1,5 +1,6 @@
 package com.cx.sdk.oidcLogin.restClient;
 
+import com.cx.sdk.domain.entities.ProxyParams;
 import com.cx.sdk.oidcLogin.constants.Consts;
 import com.cx.sdk.oidcLogin.dto.AccessTokenDTO;
 import com.cx.sdk.oidcLogin.dto.UserInfoDTO;
@@ -11,15 +12,22 @@ import com.cx.sdk.oidcLogin.webBrowsing.LoginData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.HttpClientUtils;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.ProxyAuthenticationStrategy;
+import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.ssl.SSLContexts;
@@ -59,7 +67,7 @@ public class CxServerImpl implements ICxServer {
     public static final String GET_VERSION_ERROR = "Get Version API not found, server not found or version is older than 9.0";
     private static final String AUTHENTICATION_FAILED = " User authentication failed";
     private static final String INFO_FAILED = "User info failed";
-
+    private ProxyParams proxyParams;
     private final Logger logger = Logger.getLogger("com.checkmarx.plugin.common.CxServerImpl");
 
 
@@ -74,7 +82,7 @@ public class CxServerImpl implements ICxServer {
         setClient();
     }
 
-    public CxServerImpl(String serverURL, String clientName) {
+    public CxServerImpl(String serverURL, String clientName, ProxyParams proxyParams) {
         this.serverURL = serverURL;
         this.tokenEndpointURL = serverURL + tokenEndpoint;
         this.userInfoURL = serverURL + userInfoEndpoint;
@@ -89,6 +97,10 @@ public class CxServerImpl implements ICxServer {
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultHeaders(headers);
         setSSLTls(builder, "TLSv1.2");
         disableCertificateValidation(builder);
+        if(!isCustomProxySet(proxyParams))
+            builder.useSystemProperties();
+        else
+            setCustomProxy(builder,proxyParams);
         client = builder.build();
     }
 
@@ -174,6 +186,12 @@ public class CxServerImpl implements ICxServer {
             headers.add(new BasicHeader(Consts.AUTHORIZATION_HEADER, Consts.BEARER + accessToken));
             headers.add(new BasicHeader("Content-Length", "0"));
             HttpClientBuilder builder = HttpClientBuilder.create();
+
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
+
             setSSLTls(builder, "TLSv1.2");
             disableCertificateValidation(builder);
             client = builder.setDefaultHeaders(headers).build();
@@ -248,6 +266,10 @@ public class CxServerImpl implements ICxServer {
             }).build();
             builder.setSslcontext(disabledSSLContext);
             builder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+            if(!isCustomProxySet(proxyParams))
+                builder.useSystemProperties();
+            else
+                setCustomProxy(builder,proxyParams);
         } catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
             logger.warn("Failed to disable certificate verification: " + e.getMessage());
         }
@@ -263,5 +285,32 @@ public class CxServerImpl implements ICxServer {
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             logger.warn("Failed to set SSL TLS : " + e.getMessage());
         }
+    }
+
+    private boolean isEmpty(String s){
+        return s == null || s.isEmpty();
+    }
+
+    private boolean isCustomProxySet(ProxyParams proxyConfig){
+        return proxyConfig != null &&
+                proxyConfig.getServer() != null && !proxyConfig.getServer().isEmpty() &&
+                proxyConfig.getPort() != 0;
+    }
+
+    private void setCustomProxy(HttpClientBuilder cb, ProxyParams proxyConfig) {
+        String scheme = proxyConfig.getType();
+        HttpHost proxy = new HttpHost(proxyConfig.getServer(), proxyConfig.getPort(), scheme);
+        if (!isEmpty(proxyConfig.getUsername()) &&
+                !isEmpty(proxyConfig.getPassword())) {
+            UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(proxyConfig.getUsername(), proxyConfig.getPassword());
+            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+            credsProvider.setCredentials(new AuthScope(proxy), credentials);
+            cb.setDefaultCredentialsProvider(credsProvider);
+        }
+
+        logger.info("Setting proxy for Checkmarx http client");
+        cb.setProxy(proxy);
+        cb.setRoutePlanner(new DefaultProxyRoutePlanner(proxy));
+        cb.setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
     }
 }
