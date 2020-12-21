@@ -211,6 +211,8 @@ public class CxServerImpl implements ICxServer {
             client = builder.setDefaultHeaders(headers).build();
 
             postRequest = RequestBuilder.post()
+                    .setHeader(Consts.AUTHORIZATION_HEADER,Consts.BEARER + accessToken)
+                    .setHeader("Content-Length","0")
                     .setUri(userInfoURL)
                     .build();
             //Add print request
